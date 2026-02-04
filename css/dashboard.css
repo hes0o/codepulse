@@ -677,6 +677,520 @@
     }
 }
 
+/* ====================================
+   Leaderboard
+   ==================================== */
+
+.leaderboard-container {
+    max-width: 800px;
+    margin: 0 auto;
+}
+
+.podium {
+    display: flex;
+    justify-content: center;
+    align-items: flex-end;
+    gap: var(--space-lg);
+    margin-bottom: var(--space-3xl);
+    padding: var(--space-xl) 0;
+}
+
+.podium-place {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: var(--space-xl);
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-xl);
+    transition: all var(--transition-base);
+    min-width: 180px;
+}
+
+.podium-place:hover {
+    transform: translateY(-4px);
+}
+
+.podium-place.first {
+    order: 2;
+    background: linear-gradient(135deg, rgba(255, 215, 0, 0.1), rgba(255, 193, 7, 0.05));
+    border-color: #ffd700;
+    padding-bottom: var(--space-3xl);
+}
+
+.podium-place.second {
+    order: 1;
+    background: linear-gradient(135deg, rgba(192, 192, 192, 0.1), rgba(156, 163, 175, 0.05));
+    border-color: #c0c0c0;
+}
+
+.podium-place.third {
+    order: 3;
+    background: linear-gradient(135deg, rgba(205, 127, 50, 0.1), rgba(180, 83, 9, 0.05));
+    border-color: #cd7f32;
+}
+
+.podium-avatar {
+    width: 80px;
+    height: 80px;
+    border-radius: 50%;
+    margin-bottom: var(--space-md);
+    border: 3px solid var(--border-color);
+}
+
+.podium-place.first .podium-avatar {
+    width: 100px;
+    height: 100px;
+    border-color: #ffd700;
+}
+
+.podium-rank {
+    font-size: 2rem;
+    margin-bottom: var(--space-sm);
+}
+
+.podium-name {
+    font-size: var(--font-size-lg);
+    font-weight: 600;
+    margin-bottom: var(--space-xs);
+}
+
+.podium-commits {
+    font-size: var(--font-size-sm);
+    color: var(--text-secondary);
+}
+
+.podium-score {
+    font-size: var(--font-size-2xl);
+    font-weight: 700;
+    color: var(--primary);
+    margin-top: var(--space-sm);
+}
+
+.rankings-list {
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-xl);
+    overflow: hidden;
+}
+
+.ranking-item {
+    display: flex;
+    align-items: center;
+    gap: var(--space-md);
+    padding: var(--space-lg);
+    border-bottom: 1px solid var(--border-color);
+    transition: background var(--transition-base);
+}
+
+.ranking-item:last-child {
+    border-bottom: none;
+}
+
+.ranking-item:hover {
+    background: var(--bg-elevated);
+}
+
+.ranking-position {
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--bg-elevated);
+    border-radius: var(--radius-md);
+    font-weight: 700;
+    font-size: var(--font-size-lg);
+}
+
+.ranking-avatar {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+}
+
+.ranking-info {
+    flex: 1;
+}
+
+.ranking-name {
+    font-weight: 600;
+    margin-bottom: var(--space-xs);
+}
+
+.ranking-details {
+    font-size: var(--font-size-sm);
+    color: var(--text-muted);
+}
+
+.ranking-stats {
+    display: flex;
+    gap: var(--space-xl);
+    text-align: center;
+}
+
+.ranking-stat-value {
+    font-size: var(--font-size-xl);
+    font-weight: 700;
+    display: block;
+}
+
+.ranking-stat-label {
+    font-size: var(--font-size-xs);
+    color: var(--text-muted);
+}
+
+/* ====================================
+   Settings / Repo Selection
+   ==================================== */
+
+.settings-container {
+    max-width: 800px;
+    margin: 0 auto;
+}
+
+.settings-section {
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-xl);
+    padding: var(--space-xl);
+}
+
+.settings-section h2 {
+    font-size: var(--font-size-xl);
+    margin-bottom: var(--space-sm);
+}
+
+.settings-description {
+    color: var(--text-secondary);
+    margin-bottom: var(--space-xl);
+}
+
+.repo-selection-actions {
+    display: flex;
+    gap: var(--space-md);
+    margin-bottom: var(--space-lg);
+}
+
+.repo-selection-list {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-sm);
+}
+
+.repo-checkbox {
+    display: flex;
+    align-items: center;
+    gap: var(--space-md);
+    padding: var(--space-md);
+    background: var(--bg-elevated);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-lg);
+    cursor: pointer;
+    transition: all var(--transition-base);
+}
+
+.repo-checkbox:hover {
+    border-color: var(--primary);
+}
+
+.repo-checkbox.selected {
+    border-color: var(--primary);
+    background: rgba(99, 102, 241, 0.1);
+}
+
+.repo-checkbox input[type="checkbox"] {
+    width: 20px;
+    height: 20px;
+    accent-color: var(--primary);
+    cursor: pointer;
+}
+
+.repo-checkbox-info {
+    flex: 1;
+}
+
+.repo-checkbox-name {
+    font-weight: 600;
+    margin-bottom: var(--space-xs);
+}
+
+.repo-checkbox-meta {
+    font-size: var(--font-size-sm);
+    color: var(--text-muted);
+}
+
+/* ====================================
+   Modal
+   ==================================== */
+
+.modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.8);
+    backdrop-filter: blur(4px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 100;
+    opacity: 0;
+    visibility: hidden;
+    transition: all var(--transition-base);
+}
+
+.modal-overlay.active {
+    opacity: 1;
+    visibility: visible;
+}
+
+.modal {
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-xl);
+    width: 90%;
+    max-width: 700px;
+    max-height: 85vh;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    transform: scale(0.9);
+    transition: transform var(--transition-base);
+}
+
+.modal-overlay.active .modal {
+    transform: scale(1);
+}
+
+.modal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: var(--space-lg);
+    border-bottom: 1px solid var(--border-color);
+}
+
+.modal-header h2 {
+    font-size: var(--font-size-lg);
+    font-weight: 600;
+}
+
+.modal-close {
+    width: 36px;
+    height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--bg-elevated);
+    border: none;
+    border-radius: var(--radius-md);
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: all var(--transition-base);
+}
+
+.modal-close:hover {
+    background: var(--error);
+    color: white;
+}
+
+.modal-close svg {
+    width: 20px;
+    height: 20px;
+}
+
+.modal-content {
+    padding: var(--space-xl);
+    overflow-y: auto;
+}
+
+.commit-detail-header {
+    display: flex;
+    align-items: center;
+    gap: var(--space-md);
+    margin-bottom: var(--space-xl);
+}
+
+.commit-detail-avatar {
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+}
+
+.commit-detail-info h3 {
+    font-size: var(--font-size-md);
+    margin-bottom: var(--space-xs);
+}
+
+.commit-detail-meta {
+    font-size: var(--font-size-sm);
+    color: var(--text-muted);
+}
+
+.commit-detail-message {
+    background: var(--bg-elevated);
+    padding: var(--space-lg);
+    border-radius: var(--radius-lg);
+    margin-bottom: var(--space-xl);
+    font-family: monospace;
+    white-space: pre-wrap;
+    line-height: 1.6;
+}
+
+.commit-detail-stats {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: var(--space-md);
+    margin-bottom: var(--space-xl);
+}
+
+.commit-stat-card {
+    background: var(--bg-elevated);
+    padding: var(--space-lg);
+    border-radius: var(--radius-lg);
+    text-align: center;
+}
+
+.commit-stat-card.additions {
+    border-left: 3px solid var(--success);
+}
+
+.commit-stat-card.deletions {
+    border-left: 3px solid var(--error);
+}
+
+.commit-stat-card.files {
+    border-left: 3px solid var(--primary);
+}
+
+.commit-stat-value {
+    font-size: var(--font-size-2xl);
+    font-weight: 700;
+    display: block;
+}
+
+.commit-stat-label {
+    font-size: var(--font-size-sm);
+    color: var(--text-muted);
+}
+
+.commit-files-list {
+    background: var(--bg-elevated);
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+}
+
+.commit-files-header {
+    padding: var(--space-md) var(--space-lg);
+    background: var(--bg-card);
+    font-weight: 600;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.commit-file-item {
+    display: flex;
+    align-items: center;
+    gap: var(--space-md);
+    padding: var(--space-md) var(--space-lg);
+    border-bottom: 1px solid var(--border-color);
+    font-family: monospace;
+    font-size: var(--font-size-sm);
+}
+
+.commit-file-item:last-child {
+    border-bottom: none;
+}
+
+.file-status {
+    padding: var(--space-xs) var(--space-sm);
+    border-radius: var(--radius-sm);
+    font-size: var(--font-size-xs);
+    font-weight: 600;
+}
+
+.file-status.added {
+    background: rgba(16, 185, 129, 0.15);
+    color: var(--success);
+}
+
+.file-status.modified {
+    background: rgba(245, 158, 11, 0.15);
+    color: var(--warning);
+}
+
+.file-status.removed {
+    background: rgba(239, 68, 68, 0.15);
+    color: var(--error);
+}
+
+.file-name {
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.file-changes {
+    color: var(--text-muted);
+}
+
+.file-changes .additions {
+    color: var(--success);
+}
+
+.file-changes .deletions {
+    color: var(--error);
+}
+
+/* Make commits clickable */
+.commit-item.clickable {
+    cursor: pointer;
+}
+
+.commit-item.clickable:hover {
+    background: var(--bg-elevated);
+    border-left: 3px solid var(--primary);
+}
+
+/* ====================================
+   Responsive
+   ==================================== */
+
+@media (max-width: 1024px) {
+    .sidebar {
+        width: 80px;
+    }
+
+    .sidebar-header .logo-text,
+    .nav-item span,
+    .user-details,
+    .logout-btn span {
+        display: none;
+    }
+
+    .nav-item {
+        justify-content: center;
+    }
+
+    .main-content {
+        margin-left: 80px;
+    }
+
+    .user-info {
+        justify-content: center;
+        padding: var(--space-sm);
+    }
+
+    .podium {
+        flex-direction: column;
+        align-items: center;
+    }
+
+    .podium-place {
+        order: unset !important;
+        width: 100%;
+        max-width: 300px;
+    }
+}
+
 @media (max-width: 768px) {
     .sidebar {
         transform: translateX(-100%);
@@ -697,5 +1211,14 @@
 
     .repos-grid {
         grid-template-columns: 1fr;
+    }
+
+    .commit-detail-stats {
+        grid-template-columns: 1fr;
+    }
+
+    .modal {
+        width: 95%;
+        max-height: 90vh;
     }
 }

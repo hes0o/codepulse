@@ -6,7 +6,9 @@
 // State
 const state = {
     user: null,
-    repos: [],
+    allRepos: [],        // All repos from GitHub
+    selectedRepos: [],   // IDs of selected repos to track
+    repos: [],           // Filtered repos (selected only)
     commits: [],
     contributors: new Map(),
     currentView: 'overview'
@@ -17,8 +19,10 @@ const elements = {
     loadingState: document.getElementById('loadingState'),
     overviewView: document.getElementById('overviewView'),
     reposView: document.getElementById('reposView'),
+    leaderboardView: document.getElementById('leaderboardView'),
     teamView: document.getElementById('teamView'),
     commitsView: document.getElementById('commitsView'),
+    settingsView: document.getElementById('settingsView'),
     emptyState: document.getElementById('emptyState'),
 
     // Stats
@@ -39,10 +43,29 @@ const elements = {
     teamGrid: document.getElementById('teamGrid'),
     allCommits: document.getElementById('allCommits'),
 
+    // Leaderboard
+    podium: document.getElementById('podium'),
+    rankingsList: document.getElementById('rankingsList'),
+
+    // Settings
+    repoSelectionList: document.getElementById('repoSelectionList'),
+    selectAllRepos: document.getElementById('selectAllRepos'),
+    deselectAllRepos: document.getElementById('deselectAllRepos'),
+
+    // Modal
+    commitModal: document.getElementById('commitModal'),
+    commitModalContent: document.getElementById('commitModalContent'),
+    closeCommitModal: document.getElementById('closeCommitModal'),
+
     // Header
     pageTitle: document.getElementById('pageTitle'),
     pageSubtitle: document.getElementById('pageSubtitle'),
     refreshBtn: document.getElementById('refreshBtn')
+};
+
+// Local Storage Keys
+const STORAGE_KEYS = {
+    selectedRepos: 'codepulse_selected_repos'
 };
 
 // API Functions
@@ -65,10 +88,28 @@ const api = {
         return response.json();
     },
 
+    async getCommitDetails(repo, owner, sha) {
+        const response = await fetch(`/api/commit-details?repo=${repo}&owner=${owner}&sha=${sha}`);
+        if (!response.ok) throw new Error('Failed to fetch commit details');
+        return response.json();
+    },
+
     async getContributors(repo, owner) {
         const response = await fetch(`/api/contributors?repo=${repo}&owner=${owner}`);
         if (!response.ok) return [];
         return response.json();
+    }
+};
+
+// Storage Functions
+const storage = {
+    getSelectedRepos() {
+        const saved = localStorage.getItem(STORAGE_KEYS.selectedRepos);
+        return saved ? JSON.parse(saved) : null;
+    },
+
+    saveSelectedRepos(repoIds) {
+        localStorage.setItem(STORAGE_KEYS.selectedRepos, JSON.stringify(repoIds));
     }
 };
 
@@ -100,9 +141,11 @@ const ui = {
     updateHeader(viewName) {
         const headers = {
             overview: { title: 'Overview', subtitle: 'Welcome back! Here\'s what\'s happening.' },
-            repos: { title: 'Repositories', subtitle: 'All your GitHub repositories' },
+            repos: { title: 'Repositories', subtitle: 'All your tracked repositories' },
+            leaderboard: { title: 'Leaderboard', subtitle: 'Top contributors ranked by activity' },
             team: { title: 'Team', subtitle: 'Contributors across your repositories' },
-            commits: { title: 'Commits', subtitle: 'Recent commit activity' }
+            commits: { title: 'Commits', subtitle: 'Recent commit activity' },
+            settings: { title: 'Settings', subtitle: 'Configure your tracked repositories' }
         };
 
         const header = headers[viewName] || headers.overview;
@@ -130,19 +173,15 @@ const ui = {
         let count = 0;
 
         state.repos.forEach(repo => {
-            let repoScore = 70; // Base score
-
-            // Bonus for description
+            let repoScore = 70;
             if (repo.description) repoScore += 10;
 
-            // Bonus for recent activity
             const lastPush = new Date(repo.pushed_at);
             const daysSincePush = (Date.now() - lastPush) / (1000 * 60 * 60 * 24);
             if (daysSincePush < 7) repoScore += 15;
             else if (daysSincePush < 30) repoScore += 10;
             else if (daysSincePush < 90) repoScore += 5;
 
-            // Bonus for stars
             if (repo.stargazers_count > 0) repoScore += 5;
 
             score += Math.min(100, repoScore);
@@ -168,7 +207,7 @@ const ui = {
 
         const recentCommits = state.commits.slice(0, 5);
         elements.activityList.innerHTML = recentCommits.map(commit => `
-            <div class="activity-item">
+            <div class="activity-item clickable" data-sha="${commit.sha}" data-repo="${commit.repo}" data-owner="${commit.owner}">
                 <img src="${commit.author?.avatar_url || 'https://github.com/ghost.png'}" 
                      alt="${commit.author?.login || 'Unknown'}" 
                      class="activity-avatar">
@@ -178,13 +217,20 @@ const ui = {
                         committed to <strong>${commit.repo}</strong>
                     </p>
                     <div class="activity-meta">
-                        <span>${commit.commit.message.split('\n')[0].substring(0, 50)}...</span>
+                        <span>${commit.commit.message.split('\n')[0].substring(0, 50)}${commit.commit.message.length > 50 ? '...' : ''}</span>
                         <span>${this.formatDate(commit.commit.author.date)}</span>
                     </div>
                 </div>
                 <span class="activity-badge ${this.getQualityClass(commit)}">${this.getQualityLabel(commit)}</span>
             </div>
         `).join('');
+
+        // Add click handlers
+        elements.activityList.querySelectorAll('.activity-item.clickable').forEach(item => {
+            item.addEventListener('click', () => {
+                this.showCommitDetails(item.dataset.sha, item.dataset.repo, item.dataset.owner);
+            });
+        });
     },
 
     renderRepos(container, repos) {
@@ -193,7 +239,7 @@ const ui = {
                 <div class="empty-state">
                     <div class="empty-icon">📂</div>
                     <h3>No repositories found</h3>
-                    <p>Create a repository on GitHub to get started.</p>
+                    <p>Select repositories to track in Settings.</p>
                 </div>
             `;
             return;
@@ -228,6 +274,62 @@ const ui = {
                         </svg>
                         ${repo.forks_count}
                     </span>
+                </div>
+            </div>
+        `).join('');
+    },
+
+    renderLeaderboard() {
+        const contributors = Array.from(state.contributors.values())
+            .sort((a, b) => b.contributions - a.contributions);
+
+        if (contributors.length === 0) {
+            elements.podium.innerHTML = '';
+            elements.rankingsList.innerHTML = `
+                <div class="empty-state">
+                    <div class="empty-icon">🏆</div>
+                    <h3>No contributors yet</h3>
+                    <p>Contributors will appear here once you have commits.</p>
+                </div>
+            `;
+            return;
+        }
+
+        // Render podium (top 3)
+        const top3 = contributors.slice(0, 3);
+        const medals = ['🥇', '🥈', '🥉'];
+        const placeClasses = ['first', 'second', 'third'];
+
+        elements.podium.innerHTML = top3.map((contributor, index) => `
+            <div class="podium-place ${placeClasses[index]}">
+                <img src="${contributor.avatar_url}" alt="${contributor.login}" class="podium-avatar">
+                <span class="podium-rank">${medals[index]}</span>
+                <span class="podium-name">${contributor.login}</span>
+                <span class="podium-commits">${contributor.contributions} commits</span>
+                <span class="podium-score">#${index + 1}</span>
+            </div>
+        `).join('');
+
+        // Render full rankings (4th place onwards)
+        const rest = contributors.slice(3);
+        if (rest.length === 0) {
+            elements.rankingsList.innerHTML = '';
+            return;
+        }
+
+        elements.rankingsList.innerHTML = rest.map((contributor, index) => `
+            <div class="ranking-item">
+                <div class="ranking-position">${index + 4}</div>
+                <img src="${contributor.avatar_url}" alt="${contributor.login}" class="ranking-avatar">
+                <div class="ranking-info">
+                    <div class="ranking-name">${contributor.login}</div>
+                    <div class="ranking-details">@${contributor.login}</div>
+                </div>
+                <div class="ranking-stats">
+                    <div class="ranking-stat">
+                        <span class="ranking-stat-value">${contributor.contributions}</span>
+                        <span class="ranking-stat-label">Commits</span>
+                    </div>
                 </div>
             </div>
         `).join('');
@@ -275,7 +377,7 @@ const ui = {
         }
 
         elements.allCommits.innerHTML = state.commits.map(commit => `
-            <div class="commit-item">
+            <div class="commit-item clickable" data-sha="${commit.sha}" data-repo="${commit.repo}" data-owner="${commit.owner}">
                 <img src="${commit.author?.avatar_url || 'https://github.com/ghost.png'}" 
                      alt="${commit.author?.login || 'Unknown'}" 
                      class="commit-avatar">
@@ -293,13 +395,139 @@ const ui = {
                 </span>
             </div>
         `).join('');
+
+        // Add click handlers
+        elements.allCommits.querySelectorAll('.commit-item.clickable').forEach(item => {
+            item.addEventListener('click', () => {
+                this.showCommitDetails(item.dataset.sha, item.dataset.repo, item.dataset.owner);
+            });
+        });
+    },
+
+    renderRepoSelection() {
+        elements.repoSelectionList.innerHTML = state.allRepos.map(repo => {
+            const isSelected = state.selectedRepos.includes(repo.id);
+            return `
+                <label class="repo-checkbox ${isSelected ? 'selected' : ''}" data-repo-id="${repo.id}">
+                    <input type="checkbox" ${isSelected ? 'checked' : ''}>
+                    <div class="repo-checkbox-info">
+                        <div class="repo-checkbox-name">${repo.name}</div>
+                        <div class="repo-checkbox-meta">
+                            ${repo.language || 'No language'} • 
+                            ${repo.private ? 'Private' : 'Public'} • 
+                            Updated ${this.formatDate(repo.pushed_at)}
+                        </div>
+                    </div>
+                </label>
+            `;
+        }).join('');
+
+        // Add change handlers
+        elements.repoSelectionList.querySelectorAll('.repo-checkbox').forEach(checkbox => {
+            checkbox.addEventListener('change', (e) => {
+                const repoId = parseInt(checkbox.dataset.repoId);
+                const isChecked = checkbox.querySelector('input').checked;
+
+                if (isChecked) {
+                    if (!state.selectedRepos.includes(repoId)) {
+                        state.selectedRepos.push(repoId);
+                    }
+                    checkbox.classList.add('selected');
+                } else {
+                    state.selectedRepos = state.selectedRepos.filter(id => id !== repoId);
+                    checkbox.classList.remove('selected');
+                }
+
+                storage.saveSelectedRepos(state.selectedRepos);
+                updateTrackedRepos();
+            });
+        });
+    },
+
+    async showCommitDetails(sha, repo, owner) {
+        elements.commitModal.classList.add('active');
+        elements.commitModalContent.innerHTML = `
+            <div class="loading-state">
+                <div class="loading-spinner"></div>
+                <p>Loading commit details...</p>
+            </div>
+        `;
+
+        try {
+            const commit = await api.getCommitDetails(repo, owner, sha);
+
+            const filesHtml = commit.files ? commit.files.map(file => {
+                let status = 'modified';
+                if (file.status === 'added') status = 'added';
+                else if (file.status === 'removed') status = 'removed';
+
+                return `
+                    <div class="commit-file-item">
+                        <span class="file-status ${status}">${status}</span>
+                        <span class="file-name">${file.filename}</span>
+                        <span class="file-changes">
+                            <span class="additions">+${file.additions}</span> / 
+                            <span class="deletions">-${file.deletions}</span>
+                        </span>
+                    </div>
+                `;
+            }).join('') : '<div class="commit-file-item">No files data available</div>';
+
+            elements.commitModalContent.innerHTML = `
+                <div class="commit-detail-header">
+                    <img src="${commit.author?.avatar_url || 'https://github.com/ghost.png'}" 
+                         alt="${commit.author?.login || 'Unknown'}" 
+                         class="commit-detail-avatar">
+                    <div class="commit-detail-info">
+                        <h3>${commit.author?.login || 'Unknown'}</h3>
+                        <div class="commit-detail-meta">
+                            ${this.formatDate(commit.commit.author.date)} • ${commit.sha.substring(0, 7)}
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="commit-detail-message">${commit.commit.message}</div>
+                
+                <div class="commit-detail-stats">
+                    <div class="commit-stat-card additions">
+                        <span class="commit-stat-value">+${commit.stats?.additions || 0}</span>
+                        <span class="commit-stat-label">Additions</span>
+                    </div>
+                    <div class="commit-stat-card deletions">
+                        <span class="commit-stat-value">-${commit.stats?.deletions || 0}</span>
+                        <span class="commit-stat-label">Deletions</span>
+                    </div>
+                    <div class="commit-stat-card files">
+                        <span class="commit-stat-value">${commit.files?.length || 0}</span>
+                        <span class="commit-stat-label">Files Changed</span>
+                    </div>
+                </div>
+                
+                <div class="commit-files-list">
+                    <div class="commit-files-header">Files Changed</div>
+                    ${filesHtml}
+                </div>
+            `;
+        } catch (error) {
+            console.error('Failed to load commit details:', error);
+            elements.commitModalContent.innerHTML = `
+                <div class="empty-state">
+                    <div class="empty-icon">❌</div>
+                    <h3>Failed to load commit details</h3>
+                    <p>Please try again later.</p>
+                </div>
+            `;
+        }
+    },
+
+    hideCommitModal() {
+        elements.commitModal.classList.remove('active');
     },
 
     getQualityClass(commit) {
         const message = commit.commit.message;
         const length = message.length;
 
-        // Simple quality heuristics
         if (length < 10) return 'warning';
         if (message.toLowerCase().includes('fix') || message.toLowerCase().includes('bug')) return 'warning';
         if (message.toLowerCase().includes('wip') || message.toLowerCase().includes('todo')) return 'error';
@@ -350,6 +578,21 @@ const ui = {
     }
 };
 
+// Update tracked repos based on selection
+function updateTrackedRepos() {
+    if (state.selectedRepos.length === 0) {
+        // If no selection, track top 5 by default
+        state.repos = state.allRepos.slice(0, 5);
+    } else {
+        state.repos = state.allRepos.filter(repo => state.selectedRepos.includes(repo.id));
+    }
+
+    // Re-render views that depend on repos
+    ui.updateStats();
+    ui.renderRepos(elements.topRepos, state.repos.slice(0, 4));
+    ui.renderRepos(elements.allRepos, state.repos);
+}
+
 // Data Loading
 async function loadData() {
     ui.showLoading();
@@ -359,17 +602,33 @@ async function loadData() {
         state.user = await api.getUser();
         ui.updateUserInfo(state.user);
 
-        // Load repos
-        state.repos = await api.getRepos();
+        // Load all repos
+        state.allRepos = await api.getRepos();
 
-        // Load commits and contributors for each repo
-        const topRepos = state.repos.slice(0, 5);
+        // Load saved selection or default to top 5
+        const savedSelection = storage.getSelectedRepos();
+        if (savedSelection && savedSelection.length > 0) {
+            state.selectedRepos = savedSelection.filter(id =>
+                state.allRepos.some(repo => repo.id === id)
+            );
+        } else {
+            state.selectedRepos = state.allRepos.slice(0, 5).map(repo => repo.id);
+            storage.saveSelectedRepos(state.selectedRepos);
+        }
 
-        for (const repo of topRepos) {
+        // Filter repos based on selection
+        updateTrackedRepos();
+
+        // Render repo selection
+        ui.renderRepoSelection();
+
+        // Load commits and contributors for tracked repos
+        for (const repo of state.repos) {
             try {
                 const commits = await api.getCommits(repo.name, repo.owner.login);
                 commits.forEach(commit => {
                     commit.repo = repo.name;
+                    commit.owner = repo.owner.login;
                     state.commits.push(commit);
 
                     // Track contributors
@@ -399,6 +658,7 @@ async function loadData() {
         ui.renderActivityList();
         ui.renderRepos(elements.topRepos, state.repos.slice(0, 4));
         ui.renderRepos(elements.allRepos, state.repos);
+        ui.renderLeaderboard();
         ui.renderTeam();
         ui.renderCommits();
 
@@ -433,6 +693,49 @@ document.addEventListener('DOMContentLoaded', () => {
             state.commits = [];
             state.contributors.clear();
             loadData();
+        });
+    }
+
+    // Modal close
+    if (elements.closeCommitModal) {
+        elements.closeCommitModal.addEventListener('click', () => {
+            ui.hideCommitModal();
+        });
+    }
+
+    // Close modal on overlay click
+    if (elements.commitModal) {
+        elements.commitModal.addEventListener('click', (e) => {
+            if (e.target === elements.commitModal) {
+                ui.hideCommitModal();
+            }
+        });
+    }
+
+    // Close modal on escape key
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && elements.commitModal.classList.contains('active')) {
+            ui.hideCommitModal();
+        }
+    });
+
+    // Select all repos
+    if (elements.selectAllRepos) {
+        elements.selectAllRepos.addEventListener('click', () => {
+            state.selectedRepos = state.allRepos.map(repo => repo.id);
+            storage.saveSelectedRepos(state.selectedRepos);
+            ui.renderRepoSelection();
+            updateTrackedRepos();
+        });
+    }
+
+    // Deselect all repos
+    if (elements.deselectAllRepos) {
+        elements.deselectAllRepos.addEventListener('click', () => {
+            state.selectedRepos = [];
+            storage.saveSelectedRepos(state.selectedRepos);
+            ui.renderRepoSelection();
+            updateTrackedRepos();
         });
     }
 

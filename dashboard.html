@@ -39,6 +39,12 @@
                 </svg>
                 <span>Repositories</span>
             </a>
+            <a href="#" class="nav-item" data-view="leaderboard">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M12 15l-2 5l9-11h-5l2-5l-9 11z" />
+                </svg>
+                <span>Leaderboard</span>
+            </a>
             <a href="#" class="nav-item" data-view="team">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
@@ -55,6 +61,14 @@
                     <line x1="17.01" y1="12" x2="22.96" y2="12" />
                 </svg>
                 <span>Commits</span>
+            </a>
+            <a href="#" class="nav-item" data-view="settings">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="12" cy="12" r="3" />
+                    <path
+                        d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" />
+                </svg>
+                <span>Settings</span>
             </a>
         </nav>
 
@@ -115,7 +129,7 @@
                     </div>
                     <div class="stat-info">
                         <span class="stat-value" id="totalRepos">0</span>
-                        <span class="stat-label">Repositories</span>
+                        <span class="stat-label">Tracked Repos</span>
                     </div>
                 </div>
                 <div class="stat-card">
@@ -189,6 +203,20 @@
             </div>
         </div>
 
+        <!-- Leaderboard View -->
+        <div class="view" id="leaderboardView">
+            <div class="leaderboard-container">
+                <!-- Podium for top 3 -->
+                <div class="podium" id="podium">
+                    <!-- Podium will be populated by JS -->
+                </div>
+                <!-- Full rankings -->
+                <div class="rankings-list" id="rankingsList">
+                    <!-- Rankings will be populated by JS -->
+                </div>
+            </div>
+        </div>
+
         <!-- Team View -->
         <div class="view" id="teamView">
             <div class="team-grid" id="teamGrid">
@@ -203,6 +231,26 @@
             </div>
         </div>
 
+        <!-- Settings View (Repo Selection) -->
+        <div class="view" id="settingsView">
+            <div class="settings-container">
+                <div class="settings-section">
+                    <h2>Select Repositories to Track</h2>
+                    <p class="settings-description">Choose which repositories you want to monitor. Changes are saved
+                        automatically.</p>
+
+                    <div class="repo-selection-actions">
+                        <button class="btn btn-secondary" id="selectAllRepos">Select All</button>
+                        <button class="btn btn-secondary" id="deselectAllRepos">Deselect All</button>
+                    </div>
+
+                    <div class="repo-selection-list" id="repoSelectionList">
+                        <!-- Repo checkboxes will be populated by JS -->
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <!-- Empty State -->
         <div class="empty-state" id="emptyState" style="display: none;">
             <div class="empty-icon">📭</div>
@@ -210,6 +258,24 @@
             <p>We couldn't find any repositories. Make sure you have access to at least one repository.</p>
         </div>
     </main>
+
+    <!-- Commit Details Modal -->
+    <div class="modal-overlay" id="commitModal">
+        <div class="modal">
+            <div class="modal-header">
+                <h2>Commit Details</h2>
+                <button class="modal-close" id="closeCommitModal">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <line x1="18" y1="6" x2="6" y2="18" />
+                        <line x1="6" y1="6" x2="18" y2="18" />
+                    </svg>
+                </button>
+            </div>
+            <div class="modal-content" id="commitModalContent">
+                <!-- Commit details will be populated by JS -->
+            </div>
+        </div>
+    </div>
 
     <script src="js/app.js"></script>
     <script src="js/dashboard.js"></script>
