@@ -609,9 +609,16 @@
 .commit-meta {
     display: flex;
     flex-wrap: wrap;
-    gap: var(--space-md);
+    align-items: center;
+    gap: var(--space-sm);
     font-size: var(--font-size-xs);
     color: var(--text-muted);
+}
+
+.commit-meta img {
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
 }
 
 .commit-sha {
