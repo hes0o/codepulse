@@ -236,9 +236,85 @@
             </div>
         </div>
 
+        <!-- Repo Detail View (Single Repo Dashboard) -->
+        <div class="view" id="repoDetailView">
+            <div class="repo-detail-container">
+                <!-- Back Button -->
+                <button class="back-btn" id="backToRepos">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20">
+                        <line x1="19" y1="12" x2="5" y2="12" />
+                        <polyline points="12 19 5 12 12 5" />
+                    </svg>
+                    Back to Repositories
+                </button>
+
+                <!-- Repo Header -->
+                <div class="repo-detail-header" id="repoDetailHeader">
+                    <!-- Populated by JS -->
+                </div>
+
+                <!-- Sub-navigation tabs -->
+                <div class="repo-tabs">
+                    <button class="repo-tab active" data-tab="overview">Overview</button>
+                    <button class="repo-tab" data-tab="commits">Commits</button>
+                    <button class="repo-tab" data-tab="prs">PRs</button>
+                    <button class="repo-tab" data-tab="team">Team</button>
+                    <button class="repo-tab" data-tab="quality">Quality</button>
+                </div>
+
+                <!-- Tab Contents -->
+                <div class="repo-tab-content active" id="repoTabOverview">
+                    <div class="stats-grid" id="repoStats">
+                        <!-- Repo-specific stats -->
+                    </div>
+                    <div class="activity-list" id="repoActivityList">
+                        <!-- Repo-specific activity -->
+                    </div>
+                </div>
+
+                <div class="repo-tab-content" id="repoTabCommits">
+                    <div class="commits-list" id="repoCommits">
+                        <!-- Repo-specific commits -->
+                    </div>
+                </div>
+
+                <div class="repo-tab-content" id="repoTabPrs">
+                    <div class="pr-stats" id="repoPrStats">
+                        <!-- Repo-specific PR stats -->
+                    </div>
+                    <div class="pr-list" id="repoPrList">
+                        <!-- Repo-specific PRs -->
+                    </div>
+                </div>
+
+                <div class="repo-tab-content" id="repoTabTeam">
+                    <div class="team-grid" id="repoTeam">
+                        <!-- Repo-specific team -->
+                    </div>
+                </div>
+
+                <div class="repo-tab-content" id="repoTabQuality">
+                    <div class="quality-overview" id="repoQualityOverview">
+                        <!-- Quality stats -->
+                    </div>
+                    <div class="quality-breakdown" id="repoQualityBreakdown">
+                        <!-- Per-person quality -->
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <!-- Leaderboard View -->
         <div class="view" id="leaderboardView">
             <div class="leaderboard-container">
+                <!-- Repo Filter -->
+                <div class="leaderboard-filter">
+                    <label for="leaderboardRepoFilter">Filter by Repository:</label>
+                    <select id="leaderboardRepoFilter" class="filter-select">
+                        <option value="all">All Repositories</option>
+                        <!-- Options populated by JS -->
+                    </select>
+                </div>
                 <!-- Podium for top 3 -->
                 <div class="podium" id="podium">
                     <!-- Podium will be populated by JS -->

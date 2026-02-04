@@ -14,7 +14,9 @@ const state = {
     contributors: new Map(),
     goals: [],           // Team goals
     currentView: 'overview',
-    theme: 'dark'        // Current theme
+    theme: 'dark',       // Current theme
+    selectedRepoDetail: null, // Currently viewing repo
+    leaderboardFilter: 'all'  // Leaderboard repo filter
 };
 
 // DOM Elements
@@ -49,6 +51,7 @@ const elements = {
     // Leaderboard
     podium: document.getElementById('podium'),
     rankingsList: document.getElementById('rankingsList'),
+    leaderboardRepoFilter: document.getElementById('leaderboardRepoFilter'),
 
     // Settings
     repoSelectionList: document.getElementById('repoSelectionList'),
@@ -74,6 +77,19 @@ const elements = {
 
     // Theme
     themeToggle: document.getElementById('themeToggle'),
+
+    // Repo Detail View
+    repoDetailView: document.getElementById('repoDetailView'),
+    backToRepos: document.getElementById('backToRepos'),
+    repoDetailHeader: document.getElementById('repoDetailHeader'),
+    repoStats: document.getElementById('repoStats'),
+    repoActivityList: document.getElementById('repoActivityList'),
+    repoCommits: document.getElementById('repoCommits'),
+    repoPrStats: document.getElementById('repoPrStats'),
+    repoPrList: document.getElementById('repoPrList'),
+    repoTeam: document.getElementById('repoTeam'),
+    repoQualityOverview: document.getElementById('repoQualityOverview'),
+    repoQualityBreakdown: document.getElementById('repoQualityBreakdown'),
 
     // Header
     pageTitle: document.getElementById('pageTitle'),
@@ -178,13 +194,18 @@ const ui = {
         if (navItem) navItem.classList.add('active');
 
         state.currentView = viewName;
-        this.updateHeader(viewName);
+
+        // Only update header for non-repoDetail views (repoDetail manages its own header)
+        if (viewName !== 'repoDetail') {
+            this.updateHeader(viewName);
+        }
     },
 
     updateHeader(viewName) {
         const headers = {
             overview: { title: 'Overview', subtitle: 'Welcome back! Here\'s what\'s happening.' },
             repos: { title: 'Repositories', subtitle: 'All your tracked repositories' },
+            repoDetail: { title: 'Repository', subtitle: 'Repository details' },
             leaderboard: { title: 'Leaderboard', subtitle: 'Top contributors ranked by activity' },
             team: { title: 'Team', subtitle: 'Contributors across your repositories' },
             commits: { title: 'Commits', subtitle: 'Recent commit activity' },
@@ -291,9 +312,9 @@ const ui = {
         }
 
         container.innerHTML = repos.map(repo => `
-            <div class="repo-card">
+            <div class="repo-card clickable" data-repo-name="${repo.name}">
                 <div class="repo-header">
-                    <a href="${repo.html_url}" target="_blank" class="repo-name">${repo.name}</a>
+                    <span class="repo-name">${repo.name}</span>
                     <span class="repo-visibility">${repo.private ? 'Private' : 'Public'}</span>
                 </div>
                 <p class="repo-description">${repo.description || 'No description'}</p>
@@ -322,62 +343,28 @@ const ui = {
                 </div>
             </div>
         `).join('');
+
+        // Add click handlers for repo cards
+        container.querySelectorAll('.repo-card.clickable').forEach(card => {
+            card.addEventListener('click', (e) => {
+                // Don't trigger if clicking the external link
+                if (e.target.tagName === 'A') return;
+
+                const repoName = card.dataset.repoName;
+                const repo = state.repos.find(r => r.name === repoName);
+                if (repo) {
+                    this.openRepoDetail(repo);
+                }
+            });
+        });
     },
 
     renderLeaderboard() {
-        const contributors = Array.from(state.contributors.values())
-            .sort((a, b) => b.contributions - a.contributions);
+        // Populate the filter dropdown
+        this.populateLeaderboardFilter();
 
-        if (contributors.length === 0) {
-            elements.podium.innerHTML = '';
-            elements.rankingsList.innerHTML = `
-                <div class="empty-state">
-                    <div class="empty-icon">🏆</div>
-                    <h3>No contributors yet</h3>
-                    <p>Contributors will appear here once you have commits.</p>
-                </div>
-            `;
-            return;
-        }
-
-        // Render podium (top 3)
-        const top3 = contributors.slice(0, 3);
-        const medals = ['🥇', '🥈', '🥉'];
-        const placeClasses = ['first', 'second', 'third'];
-
-        elements.podium.innerHTML = top3.map((contributor, index) => `
-            <div class="podium-place ${placeClasses[index]}">
-                <img src="${contributor.avatar_url}" alt="${contributor.login}" class="podium-avatar">
-                <span class="podium-rank">${medals[index]}</span>
-                <span class="podium-name">${contributor.login}</span>
-                <span class="podium-commits">${contributor.contributions} commits</span>
-                <span class="podium-score">#${index + 1}</span>
-            </div>
-        `).join('');
-
-        // Render full rankings (4th place onwards)
-        const rest = contributors.slice(3);
-        if (rest.length === 0) {
-            elements.rankingsList.innerHTML = '';
-            return;
-        }
-
-        elements.rankingsList.innerHTML = rest.map((contributor, index) => `
-            <div class="ranking-item">
-                <div class="ranking-position">${index + 4}</div>
-                <img src="${contributor.avatar_url}" alt="${contributor.login}" class="ranking-avatar">
-                <div class="ranking-info">
-                    <div class="ranking-name">${contributor.login}</div>
-                    <div class="ranking-details">@${contributor.login}</div>
-                </div>
-                <div class="ranking-stats">
-                    <div class="ranking-stat">
-                        <span class="ranking-stat-value">${contributor.contributions}</span>
-                        <span class="ranking-stat-label">Commits</span>
-                    </div>
-                </div>
-            </div>
-        `).join('');
+        // Use filtered rendering (defaults to 'all')
+        this.renderFilteredLeaderboard(state.leaderboardFilter);
     },
 
     renderTeam() {
@@ -927,6 +914,441 @@ const ui = {
             darkIcon.style.display = 'none';
             lightIcon.style.display = 'block';
         }
+    },
+
+    // ===== QUALITY CALCULATION =====
+    calculateCommitQuality(commit) {
+        let score = 100;
+        const issues = [];
+        const message = commit.commit.message;
+
+        // Check message length (min 10 chars)
+        if (message.length < 10) {
+            score -= 30;
+            issues.push('Message too short');
+        } else if (message.length < 25) {
+            score -= 15;
+            issues.push('Message could be more descriptive');
+        }
+
+        // Check for conventional commit format (type: message)
+        const conventionalPattern = /^(feat|fix|docs|style|refactor|test|chore|perf|ci|build|revert)(\(.+\))?:\s/i;
+        if (conventionalPattern.test(message)) {
+            score += 10; // Bonus for proper format
+        }
+
+        // Penalize WIP/TODO commits
+        if (/\b(wip|todo|temp|test123|asdf)\b/i.test(message)) {
+            score -= 25;
+            issues.push('Contains WIP/TODO markers');
+        }
+
+        // Penalize generic messages
+        if (/^(update|fix|changes?|commit|\.+)$/i.test(message.trim())) {
+            score -= 30;
+            issues.push('Generic commit message');
+        }
+
+        // Check for issue/PR references
+        if (/#\d+/.test(message)) {
+            score += 5; // Bonus for referencing issues
+        }
+
+        return {
+            score: Math.max(0, Math.min(100, score)),
+            issues
+        };
+    },
+
+    calculatePersonQuality(login, commits) {
+        const personCommits = commits.filter(c => c.author?.login === login);
+        if (personCommits.length === 0) return { score: 0, grade: 'N/A', commits: 0 };
+
+        const totalScore = personCommits.reduce((sum, commit) => {
+            return sum + this.calculateCommitQuality(commit).score;
+        }, 0);
+
+        const avgScore = totalScore / personCommits.length;
+        const grade = this.getQualityGrade(avgScore);
+
+        return {
+            score: Math.round(avgScore),
+            grade,
+            commits: personCommits.length
+        };
+    },
+
+    getQualityGrade(score) {
+        if (score >= 85) return 'A';
+        if (score >= 70) return 'B';
+        if (score >= 55) return 'C';
+        if (score >= 40) return 'D';
+        return 'F';
+    },
+
+    getQualityBadgeClass(score) {
+        if (score >= 85) return 'excellent';
+        if (score >= 70) return 'good';
+        if (score >= 55) return 'average';
+        return 'poor';
+    },
+
+    // ===== FILTERED LEADERBOARD =====
+    populateLeaderboardFilter() {
+        if (!elements.leaderboardRepoFilter) return;
+
+        const options = ['<option value="all">All Repositories</option>'];
+        state.repos.forEach(repo => {
+            options.push(`<option value="${repo.name}">${repo.name}</option>`);
+        });
+        elements.leaderboardRepoFilter.innerHTML = options.join('');
+    },
+
+    renderFilteredLeaderboard(repoFilter = 'all') {
+        // Filter commits by repo
+        const filteredCommits = repoFilter === 'all'
+            ? state.commits
+            : state.commits.filter(c => c.repo === repoFilter);
+
+        // Calculate contributions per person for filtered commits
+        const contributors = new Map();
+        filteredCommits.forEach(commit => {
+            if (commit.author) {
+                if (!contributors.has(commit.author.login)) {
+                    contributors.set(commit.author.login, {
+                        ...commit.author,
+                        contributions: 1
+                    });
+                } else {
+                    contributors.get(commit.author.login).contributions++;
+                }
+            }
+        });
+
+        // Sort by contributions
+        const sorted = [...contributors.values()]
+            .sort((a, b) => b.contributions - a.contributions);
+
+        // Render podium
+        this.renderPodium(sorted.slice(0, 3), repoFilter);
+
+        // Render rankings
+        this.renderRankings(sorted, repoFilter);
+    },
+
+    renderPodium(top3, repoFilter) {
+        if (top3.length === 0) {
+            elements.podium.innerHTML = `
+                <div class="empty-state">
+                    <div class="empty-icon">🏆</div>
+                    <h3>No activity yet</h3>
+                    <p>Start committing to see leaderboard!</p>
+                </div>
+            `;
+            return;
+        }
+
+        // Reorder for podium display: 2nd, 1st, 3rd
+        const podiumOrder = top3.length >= 2
+            ? [top3[1], top3[0], top3[2]].filter(Boolean)
+            : top3;
+
+        const medals = ['🥈', '🥇', '🥉'];
+        const medalClasses = ['silver', 'gold', 'bronze'];
+
+        elements.podium.innerHTML = podiumOrder.map((person, i) => {
+            const actualIndex = top3.length >= 2 ? [1, 0, 2][i] : i;
+            return `
+                <div class="podium-place ${medalClasses[actualIndex] || ''}">
+                    <img src="${person.avatar_url}" alt="${person.login}" class="podium-avatar">
+                    <span class="podium-medal">${medals[actualIndex] || ''}</span>
+                    <span class="podium-name">${person.login}</span>
+                    <span class="podium-score">${person.contributions} commits</span>
+                </div>
+            `;
+        }).join('');
+    },
+
+    renderRankings(sorted, repoFilter) {
+        if (sorted.length === 0) {
+            elements.rankingsList.innerHTML = '';
+            return;
+        }
+
+        elements.rankingsList.innerHTML = `
+            <div class="rankings-header">
+                <span class="rank-col">Rank</span>
+                <span class="name-col">Developer</span>
+                <span class="commits-col">Commits</span>
+                <span class="quality-col">Quality</span>
+            </div>
+            ${sorted.map((person, index) => {
+            const quality = this.calculatePersonQuality(
+                person.login,
+                repoFilter === 'all' ? state.commits : state.commits.filter(c => c.repo === repoFilter)
+            );
+            return `
+                    <div class="ranking-item">
+                        <span class="rank-col">#${index + 1}</span>
+                        <div class="name-col">
+                            <img src="${person.avatar_url}" alt="${person.login}" class="ranking-avatar">
+                            <span>${person.login}</span>
+                        </div>
+                        <span class="commits-col">${person.contributions}</span>
+                        <span class="quality-col quality-person-grade grade-${quality.grade.toLowerCase()}">${quality.grade}</span>
+                    </div>
+                `;
+        }).join('')}
+        `;
+    },
+
+    // ===== REPO DETAIL VIEW =====
+    openRepoDetail(repo) {
+        state.selectedRepoDetail = repo;
+        this.showView('repoDetail');
+        this.renderRepoDetail();
+    },
+
+    renderRepoDetail() {
+        const repo = state.selectedRepoDetail;
+        if (!repo) return;
+
+        // Update header
+        elements.pageTitle.textContent = repo.name;
+        elements.pageSubtitle.textContent = repo.description || 'No description';
+
+        // Render repo header
+        elements.repoDetailHeader.innerHTML = `
+            <h1>
+                ${repo.name}
+                <span class="repo-visibility">${repo.private ? 'Private' : 'Public'}</span>
+            </h1>
+            <p>${repo.description || 'No description provided'}</p>
+            <div class="repo-detail-meta">
+                ${repo.language ? `<span>
+                    <span class="language-dot" style="background: ${this.getLanguageColor(repo.language)}"></span>
+                    ${repo.language}
+                </span>` : ''}
+                <span>⭐ ${repo.stargazers_count}</span>
+                <span>🔀 ${repo.forks_count}</span>
+                <span>Updated ${this.formatDate(repo.updated_at)}</span>
+            </div>
+        `;
+
+        // Render each tab
+        this.renderRepoOverviewTab(repo);
+        this.renderRepoCommitsTab(repo);
+        this.renderRepoPRsTab(repo);
+        this.renderRepoTeamTab(repo);
+        this.renderRepoQualityTab(repo);
+    },
+
+    renderRepoOverviewTab(repo) {
+        const repoCommits = state.commits.filter(c => c.repo === repo.name);
+        const repoPRs = state.pullRequests.filter(pr => pr.repo === repo.name);
+
+        // Contributors for this repo
+        const contributors = new Set(repoCommits.map(c => c.author?.login).filter(Boolean));
+
+        elements.repoStats.innerHTML = `
+            <div class="stat-card">
+                <div class="stat-value">${repoCommits.length}</div>
+                <div class="stat-label">Commits</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value">${repoPRs.length}</div>
+                <div class="stat-label">Pull Requests</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value">${contributors.size}</div>
+                <div class="stat-label">Contributors</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value">${repo.open_issues_count || 0}</div>
+                <div class="stat-label">Open Issues</div>
+            </div>
+        `;
+
+        // Recent activity
+        elements.repoActivityList.innerHTML = repoCommits.slice(0, 5).map(commit => {
+            const quality = this.calculateCommitQuality(commit);
+            return `
+                <div class="activity-item">
+                    <img src="${commit.author?.avatar_url || 'https://github.com/ghost.png'}" alt="avatar" class="activity-avatar">
+                    <div class="activity-content">
+                        <p class="activity-title">${commit.commit.message.split('\n')[0]}</p>
+                        <span class="activity-meta">${commit.author?.login || 'Unknown'} • ${this.formatDate(commit.commit.author.date)}</span>
+                    </div>
+                    <span class="quality-badge ${this.getQualityBadgeClass(quality.score)}">${quality.score}</span>
+                </div>
+            `;
+        }).join('') || '<p class="empty-text">No recent activity</p>';
+    },
+
+    renderRepoCommitsTab(repo) {
+        const repoCommits = state.commits.filter(c => c.repo === repo.name);
+
+        elements.repoCommits.innerHTML = repoCommits.map(commit => {
+            const quality = this.calculateCommitQuality(commit);
+            return `
+                <div class="commit-item clickable" onclick="ui.showCommitDetails('${repo.name}', '${repo.owner.login}', '${commit.sha}')">
+                    <div class="commit-info">
+                        <p class="commit-message">${commit.commit.message.split('\n')[0]}</p>
+                        <div class="commit-meta">
+                            <img src="${commit.author?.avatar_url || 'https://github.com/ghost.png'}" alt="avatar">
+                            <span>${commit.author?.login || 'Unknown'}</span>
+                            <span>•</span>
+                            <span>${this.formatDate(commit.commit.author.date)}</span>
+                        </div>
+                    </div>
+                    <div class="commit-quality">
+                        <span class="quality-badge ${this.getQualityBadgeClass(quality.score)}">
+                            Quality: ${quality.score}
+                        </span>
+                    </div>
+                </div>
+            `;
+        }).join('') || '<div class="empty-state"><h3>No commits</h3></div>';
+    },
+
+    renderRepoPRsTab(repo) {
+        const repoPRs = state.pullRequests.filter(pr => pr.repo === repo.name);
+
+        const open = repoPRs.filter(pr => pr.state === 'open').length;
+        const merged = repoPRs.filter(pr => pr.merged_at).length;
+        const closed = repoPRs.filter(pr => pr.state === 'closed' && !pr.merged_at).length;
+
+        elements.repoPrStats.innerHTML = `
+            <div class="pr-stat-card open">
+                <span class="pr-stat-value">${open}</span>
+                <span class="pr-stat-label">Open</span>
+            </div>
+            <div class="pr-stat-card merged">
+                <span class="pr-stat-value">${merged}</span>
+                <span class="pr-stat-label">Merged</span>
+            </div>
+            <div class="pr-stat-card closed">
+                <span class="pr-stat-value">${closed}</span>
+                <span class="pr-stat-label">Closed</span>
+            </div>
+        `;
+
+        elements.repoPrList.innerHTML = repoPRs.map(pr => {
+            const status = pr.merged_at ? 'merged' : pr.state;
+            return `
+                <div class="pr-item">
+                    <div class="pr-icon ${status}">
+                        ${status === 'open' ? '🟢' : status === 'merged' ? '🟣' : '🔴'}
+                    </div>
+                    <div class="pr-content">
+                        <div class="pr-title">
+                            <a href="${pr.html_url}" target="_blank">${pr.title}</a>
+                            <span class="pr-number">#${pr.number}</span>
+                        </div>
+                        <div class="pr-meta">
+                            ${pr.user?.login || 'Unknown'} • ${this.formatDate(pr.created_at)}
+                        </div>
+                    </div>
+                </div>
+            `;
+        }).join('') || '<div class="empty-state"><h3>No pull requests</h3></div>';
+    },
+
+    renderRepoTeamTab(repo) {
+        const repoCommits = state.commits.filter(c => c.repo === repo.name);
+
+        // Build contributor map for this repo
+        const contributors = new Map();
+        repoCommits.forEach(commit => {
+            if (commit.author) {
+                if (!contributors.has(commit.author.login)) {
+                    contributors.set(commit.author.login, {
+                        ...commit.author,
+                        contributions: 1
+                    });
+                } else {
+                    contributors.get(commit.author.login).contributions++;
+                }
+            }
+        });
+
+        const sorted = [...contributors.values()].sort((a, b) => b.contributions - a.contributions);
+
+        elements.repoTeam.innerHTML = sorted.map(person => {
+            const quality = this.calculatePersonQuality(person.login, repoCommits);
+            return `
+                <div class="team-card">
+                    <img src="${person.avatar_url}" alt="${person.login}" class="team-avatar">
+                    <h3 class="team-name">${person.login}</h3>
+                    <p class="team-role">${person.contributions} commits</p>
+                    <div class="team-stats">
+                        <span>Quality: <strong class="grade-${quality.grade.toLowerCase()}">${quality.grade}</strong></span>
+                    </div>
+                </div>
+            `;
+        }).join('') || '<div class="empty-state"><h3>No team members</h3></div>';
+    },
+
+    renderRepoQualityTab(repo) {
+        const repoCommits = state.commits.filter(c => c.repo === repo.name);
+
+        // Overall repo quality
+        const totalScore = repoCommits.reduce((sum, commit) =>
+            sum + this.calculateCommitQuality(commit).score, 0);
+        const avgScore = repoCommits.length > 0 ? Math.round(totalScore / repoCommits.length) : 0;
+        const grade = this.getQualityGrade(avgScore);
+
+        // Quality by person
+        const contributors = new Set(repoCommits.map(c => c.author?.login).filter(Boolean));
+        const personQuality = [...contributors].map(login => {
+            const quality = this.calculatePersonQuality(login, repoCommits);
+            const person = repoCommits.find(c => c.author?.login === login)?.author;
+            return { ...quality, login, avatar: person?.avatar_url };
+        }).sort((a, b) => b.score - a.score);
+
+        elements.repoQualityOverview.innerHTML = `
+            <div class="quality-card">
+                <div class="quality-grade grade-${grade.toLowerCase()}">${grade}</div>
+                <div class="quality-label">Overall Quality</div>
+            </div>
+            <div class="quality-card">
+                <div class="quality-grade">${avgScore}</div>
+                <div class="quality-label">Average Score</div>
+            </div>
+            <div class="quality-card">
+                <div class="quality-grade">${repoCommits.length}</div>
+                <div class="quality-label">Total Commits</div>
+            </div>
+        `;
+
+        elements.repoQualityBreakdown.innerHTML = `
+            <div class="quality-breakdown-header">Quality by Team Member</div>
+            ${personQuality.map(p => `
+                <div class="quality-person">
+                    <img src="${p.avatar || 'https://github.com/ghost.png'}" alt="${p.login}" class="quality-person-avatar">
+                    <div class="quality-person-info">
+                        <div class="quality-person-name">${p.login}</div>
+                        <div class="quality-person-stats">
+                            <span>${p.commits} commits</span>
+                            <span>Avg Score: ${p.score}</span>
+                        </div>
+                    </div>
+                    <div class="quality-person-grade grade-${p.grade.toLowerCase()}">${p.grade}</div>
+                </div>
+            `).join('') || '<p class="empty-text">No contributors</p>'}
+        `;
+    },
+
+    switchRepoTab(tabName) {
+        // Update tab buttons
+        document.querySelectorAll('.repo-tab').forEach(tab => {
+            tab.classList.toggle('active', tab.dataset.tab === tabName);
+        });
+
+        // Update tab content
+        document.querySelectorAll('.repo-tab-content').forEach(content => {
+            content.classList.toggle('active', content.id === `repoTab${tabName.charAt(0).toUpperCase() + tabName.slice(1)}`);
+        });
     }
 };
 
@@ -1082,6 +1504,29 @@ document.addEventListener('DOMContentLoaded', () => {
     if (elements.addGoalBtn) {
         elements.addGoalBtn.addEventListener('click', () => {
             ui.showAddGoalModal();
+        });
+    }
+
+    // Back to repos button (repo detail view)
+    if (elements.backToRepos) {
+        elements.backToRepos.addEventListener('click', () => {
+            state.selectedRepoDetail = null;
+            ui.showView('repos');
+        });
+    }
+
+    // Repo detail tabs
+    document.querySelectorAll('.repo-tab').forEach(tab => {
+        tab.addEventListener('click', () => {
+            ui.switchRepoTab(tab.dataset.tab);
+        });
+    });
+
+    // Leaderboard repo filter
+    if (elements.leaderboardRepoFilter) {
+        elements.leaderboardRepoFilter.addEventListener('change', (e) => {
+            state.leaderboardFilter = e.target.value;
+            ui.renderFilteredLeaderboard(state.leaderboardFilter);
         });
     }
 
