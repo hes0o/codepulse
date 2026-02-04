@@ -171,9 +171,15 @@ img {
 }
 
 .logo-img {
-    width: 128px;
-    height: 128px;
+    width: 40px;
+    height: 40px;
     object-fit: contain;
+}
+
+/* Bigger logo in footer */
+.footer-brand .logo-img {
+    width: 64px;
+    height: 64px;
 }
 
 .nav-links {
