@@ -171,8 +171,8 @@ img {
 }
 
 .logo-img {
-    width: 32px;
-    height: 32px;
+    width: 48px;
+    height: 48px;
     object-fit: contain;
 }
 
@@ -740,6 +740,21 @@ img {
 .footer-text {
     color: var(--text-muted);
     font-size: var(--font-size-sm);
+}
+
+.footer-contact {
+    color: var(--text-muted);
+    font-size: var(--font-size-sm);
+    margin-top: var(--space-sm);
+}
+
+.footer-contact a {
+    color: var(--primary-light);
+    transition: color var(--transition-base);
+}
+
+.footer-contact a:hover {
+    color: var(--primary);
 }
 
 /* ====================================
