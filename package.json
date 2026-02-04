@@ -1,0 +1,11 @@
+{
+  "name": "codepulse",
+  "version": "1.0.0",
+  "description": "Track your team's GitHub activity and code quality",
+  "scripts": {
+    "dev": "vercel dev",
+    "deploy": "vercel --prod"
+  },
+  "dependencies": {},
+  "devDependencies": {}
+}
