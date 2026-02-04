@@ -10,8 +10,11 @@ const state = {
     selectedRepos: [],   // IDs of selected repos to track
     repos: [],           // Filtered repos (selected only)
     commits: [],
+    pullRequests: [],    // PRs across repos
     contributors: new Map(),
-    currentView: 'overview'
+    goals: [],           // Team goals
+    currentView: 'overview',
+    theme: 'dark'        // Current theme
 };
 
 // DOM Elements
@@ -57,6 +60,21 @@ const elements = {
     commitModalContent: document.getElementById('commitModalContent'),
     closeCommitModal: document.getElementById('closeCommitModal'),
 
+    // Pull Requests
+    pullsView: document.getElementById('pullsView'),
+    prStats: document.getElementById('prStats'),
+    prList: document.getElementById('prList'),
+
+    // Goals
+    goalsView: document.getElementById('goalsView'),
+    weeklySummary: document.getElementById('weeklySummary'),
+    summaryGrid: document.getElementById('summaryGrid'),
+    goalsList: document.getElementById('goalsList'),
+    addGoalBtn: document.getElementById('addGoalBtn'),
+
+    // Theme
+    themeToggle: document.getElementById('themeToggle'),
+
     // Header
     pageTitle: document.getElementById('pageTitle'),
     pageSubtitle: document.getElementById('pageSubtitle'),
@@ -65,7 +83,9 @@ const elements = {
 
 // Local Storage Keys
 const STORAGE_KEYS = {
-    selectedRepos: 'codepulse_selected_repos'
+    selectedRepos: 'codepulse_selected_repos',
+    goals: 'codepulse_goals',
+    theme: 'codepulse_theme'
 };
 
 // API Functions
@@ -98,6 +118,12 @@ const api = {
         const response = await fetch(`/api/contributors?repo=${repo}&owner=${owner}`);
         if (!response.ok) return [];
         return response.json();
+    },
+
+    async getPulls(repo, owner) {
+        const response = await fetch(`/api/pulls?repo=${repo}&owner=${owner}`);
+        if (!response.ok) return [];
+        return response.json();
     }
 };
 
@@ -110,6 +136,23 @@ const storage = {
 
     saveSelectedRepos(repoIds) {
         localStorage.setItem(STORAGE_KEYS.selectedRepos, JSON.stringify(repoIds));
+    },
+
+    getGoals() {
+        const saved = localStorage.getItem(STORAGE_KEYS.goals);
+        return saved ? JSON.parse(saved) : [];
+    },
+
+    saveGoals(goals) {
+        localStorage.setItem(STORAGE_KEYS.goals, JSON.stringify(goals));
+    },
+
+    getTheme() {
+        return localStorage.getItem(STORAGE_KEYS.theme) || 'dark';
+    },
+
+    saveTheme(theme) {
+        localStorage.setItem(STORAGE_KEYS.theme, theme);
     }
 };
 
@@ -145,6 +188,8 @@ const ui = {
             leaderboard: { title: 'Leaderboard', subtitle: 'Top contributors ranked by activity' },
             team: { title: 'Team', subtitle: 'Contributors across your repositories' },
             commits: { title: 'Commits', subtitle: 'Recent commit activity' },
+            pulls: { title: 'Pull Requests', subtitle: 'Track PR status across repositories' },
+            goals: { title: 'Goals', subtitle: 'Set and track team objectives' },
             settings: { title: 'Settings', subtitle: 'Configure your tracked repositories' }
         };
 
@@ -575,6 +620,313 @@ const ui = {
             Shell: '#89e051'
         };
         return colors[language] || '#858585';
+    },
+
+    // Pull Requests rendering
+    renderPullRequests() {
+        const prs = state.pullRequests;
+
+        // Calculate stats
+        const open = prs.filter(pr => pr.state === 'open').length;
+        const merged = prs.filter(pr => pr.merged_at).length;
+        const closed = prs.filter(pr => pr.state === 'closed' && !pr.merged_at).length;
+
+        elements.prStats.innerHTML = `
+            <div class="pr-stat-card open">
+                <span class="pr-stat-value">${open}</span>
+                <span class="pr-stat-label">Open PRs</span>
+            </div>
+            <div class="pr-stat-card merged">
+                <span class="pr-stat-value">${merged}</span>
+                <span class="pr-stat-label">Merged</span>
+            </div>
+            <div class="pr-stat-card closed">
+                <span class="pr-stat-value">${closed}</span>
+                <span class="pr-stat-label">Closed</span>
+            </div>
+            <div class="pr-stat-card">
+                <span class="pr-stat-value">${prs.length}</span>
+                <span class="pr-stat-label">Total</span>
+            </div>
+        `;
+
+        if (prs.length === 0) {
+            elements.prList.innerHTML = `
+                <div class="empty-state">
+                    <div class="empty-icon">🔗</div>
+                    <h3>No Pull Requests</h3>
+                    <p>Create a pull request to see it here.</p>
+                </div>
+            `;
+            return;
+        }
+
+        elements.prList.innerHTML = prs.slice(0, 30).map(pr => {
+            const status = pr.merged_at ? 'merged' : pr.state;
+            const statusIcon = status === 'open'
+                ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="18" cy="18" r="3"/><circle cx="6" cy="6" r="3"/><path d="M13 6h3a2 2 0 0 1 2 2v7"/><line x1="6" y1="9" x2="6" y2="21"/></svg>'
+                : status === 'merged'
+                    ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="18" cy="18" r="3"/><circle cx="6" cy="6" r="3"/><path d="M6 21V9a9 9 0 0 0 9 9"/></svg>'
+                    : '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>';
+
+            const labels = pr.labels?.map(label =>
+                `<span class="pr-label" style="background: #${label.color}20; color: #${label.color}">${label.name}</span>`
+            ).join('') || '';
+
+            return `
+                <div class="pr-item">
+                    <div class="pr-icon ${status}">${statusIcon}</div>
+                    <div class="pr-content">
+                        <div class="pr-title">
+                            <a href="${pr.html_url}" target="_blank">${pr.title}</a>
+                            <span class="pr-number">#${pr.number}</span>
+                        </div>
+                        <div class="pr-meta">
+                            ${pr.user?.login || 'Unknown'} • ${pr.repo} • ${this.formatDate(pr.created_at)}
+                        </div>
+                        ${labels ? `<div class="pr-labels">${labels}</div>` : ''}
+                    </div>
+                </div>
+            `;
+        }).join('');
+    },
+
+    // Weekly Summary
+    renderWeeklySummary() {
+        const now = new Date();
+        const weekAgo = new Date(now - 7 * 24 * 60 * 60 * 1000);
+        const twoWeeksAgo = new Date(now - 14 * 24 * 60 * 60 * 1000);
+
+        // This week's commits
+        const thisWeekCommits = state.commits.filter(c =>
+            new Date(c.commit.author.date) >= weekAgo
+        ).length;
+
+        // Last week's commits
+        const lastWeekCommits = state.commits.filter(c => {
+            const date = new Date(c.commit.author.date);
+            return date >= twoWeeksAgo && date < weekAgo;
+        }).length;
+
+        // Calculate change percentage
+        const commitChange = lastWeekCommits > 0
+            ? Math.round(((thisWeekCommits - lastWeekCommits) / lastWeekCommits) * 100)
+            : thisWeekCommits > 0 ? 100 : 0;
+
+        // This week's PRs
+        const thisWeekPRs = state.pullRequests.filter(pr =>
+            new Date(pr.created_at) >= weekAgo
+        ).length;
+
+        // Active contributors this week
+        const thisWeekContributors = new Set(
+            state.commits
+                .filter(c => new Date(c.commit.author.date) >= weekAgo)
+                .map(c => c.author?.login)
+                .filter(Boolean)
+        ).size;
+
+        // Active days
+        const activeDays = new Set(
+            state.commits
+                .filter(c => new Date(c.commit.author.date) >= weekAgo)
+                .map(c => new Date(c.commit.author.date).toDateString())
+        ).size;
+
+        elements.summaryGrid.innerHTML = `
+            <div class="summary-card">
+                <span class="summary-value">${thisWeekCommits}</span>
+                <span class="summary-label">Commits</span>
+                <div class="summary-change ${commitChange >= 0 ? 'positive' : 'negative'}">
+                    ${commitChange >= 0 ? '↑' : '↓'} ${Math.abs(commitChange)}% vs last week
+                </div>
+            </div>
+            <div class="summary-card">
+                <span class="summary-value">${thisWeekPRs}</span>
+                <span class="summary-label">Pull Requests</span>
+            </div>
+            <div class="summary-card">
+                <span class="summary-value">${thisWeekContributors}</span>
+                <span class="summary-label">Active Contributors</span>
+            </div>
+            <div class="summary-card">
+                <span class="summary-value">${activeDays}/7</span>
+                <span class="summary-label">Active Days</span>
+            </div>
+        `;
+    },
+
+    // Goals rendering
+    renderGoals() {
+        state.goals = storage.getGoals();
+
+        if (state.goals.length === 0) {
+            elements.goalsList.innerHTML = `
+                <div class="empty-state">
+                    <div class="empty-icon">🎯</div>
+                    <h3>No Goals Set</h3>
+                    <p>Create a goal to track your team's progress.</p>
+                </div>
+            `;
+            return;
+        }
+
+        // Update progress based on current data
+        state.goals = state.goals.map(goal => {
+            let current = 0;
+            const now = new Date();
+            const startDate = new Date(goal.startDate);
+
+            if (goal.type === 'commits') {
+                current = state.commits.filter(c =>
+                    new Date(c.commit.author.date) >= startDate
+                ).length;
+            } else if (goal.type === 'prs') {
+                current = state.pullRequests.filter(pr =>
+                    new Date(pr.created_at) >= startDate
+                ).length;
+            }
+
+            const endDate = new Date(goal.endDate);
+            let status = 'active';
+            if (current >= goal.target) status = 'completed';
+            else if (now > endDate) status = 'expired';
+
+            return { ...goal, current, status };
+        });
+
+        storage.saveGoals(state.goals);
+
+        elements.goalsList.innerHTML = state.goals.map((goal, index) => {
+            const progress = Math.min(100, Math.round((goal.current / goal.target) * 100));
+            const endDate = new Date(goal.endDate);
+            const daysLeft = Math.max(0, Math.ceil((endDate - new Date()) / (1000 * 60 * 60 * 24)));
+
+            return `
+                <div class="goal-card" data-goal-id="${goal.id}">
+                    <div class="goal-header">
+                        <span class="goal-title">
+                            ${goal.type === 'commits' ? '📝' : '🔗'} ${goal.name}
+                        </span>
+                        <span class="goal-status ${goal.status}">${goal.status}</span>
+                    </div>
+                    <div class="goal-progress">
+                        <div class="progress-bar">
+                            <div class="progress-fill" style="width: ${progress}%"></div>
+                        </div>
+                        <div class="progress-text">
+                            <span>${goal.current} / ${goal.target} ${goal.type}</span>
+                            <span>${progress}%</span>
+                        </div>
+                    </div>
+                    <div class="goal-meta">
+                        <span>${daysLeft > 0 ? `${daysLeft} days left` : 'Ended'}</span>
+                        <div class="goal-actions">
+                            <button onclick="ui.deleteGoal(${index})" class="delete">Delete</button>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }).join('');
+    },
+
+    addGoal(goal) {
+        state.goals.push({
+            id: Date.now(),
+            name: goal.name,
+            type: goal.type,
+            target: parseInt(goal.target),
+            startDate: goal.startDate || new Date().toISOString(),
+            endDate: goal.endDate,
+            current: 0,
+            status: 'active'
+        });
+        storage.saveGoals(state.goals);
+        this.renderGoals();
+    },
+
+    deleteGoal(index) {
+        state.goals.splice(index, 1);
+        storage.saveGoals(state.goals);
+        this.renderGoals();
+    },
+
+    showAddGoalModal() {
+        elements.commitModal.classList.add('active');
+        elements.commitModalContent.innerHTML = `
+            <div class="goal-form">
+                <div class="form-group">
+                    <label>Goal Name</label>
+                    <input type="text" id="goalName" placeholder="e.g., Weekly Commit Target">
+                </div>
+                <div class="form-group">
+                    <label>Goal Type</label>
+                    <select id="goalType">
+                        <option value="commits">Commits</option>
+                        <option value="prs">Pull Requests</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Target Number</label>
+                    <input type="number" id="goalTarget" placeholder="e.g., 50" min="1">
+                </div>
+                <div class="form-group">
+                    <label>End Date</label>
+                    <input type="date" id="goalEndDate">
+                </div>
+                <div class="form-actions">
+                    <button class="btn btn-secondary" onclick="ui.hideCommitModal()">Cancel</button>
+                    <button class="btn btn-primary" onclick="ui.submitGoal()">Create Goal</button>
+                </div>
+            </div>
+        `;
+
+        // Set default end date to 7 days from now
+        const nextWeek = new Date();
+        nextWeek.setDate(nextWeek.getDate() + 7);
+        document.getElementById('goalEndDate').value = nextWeek.toISOString().split('T')[0];
+    },
+
+    submitGoal() {
+        const name = document.getElementById('goalName').value;
+        const type = document.getElementById('goalType').value;
+        const target = document.getElementById('goalTarget').value;
+        const endDate = document.getElementById('goalEndDate').value;
+
+        if (!name || !target || !endDate) {
+            alert('Please fill in all fields');
+            return;
+        }
+
+        this.addGoal({ name, type, target, endDate });
+        this.hideCommitModal();
+    },
+
+    // Theme toggle
+    initTheme() {
+        state.theme = storage.getTheme();
+        document.documentElement.setAttribute('data-theme', state.theme);
+        this.updateThemeIcon();
+    },
+
+    toggleTheme() {
+        state.theme = state.theme === 'dark' ? 'light' : 'dark';
+        document.documentElement.setAttribute('data-theme', state.theme);
+        storage.saveTheme(state.theme);
+        this.updateThemeIcon();
+    },
+
+    updateThemeIcon() {
+        const darkIcon = document.querySelector('.theme-icon-dark');
+        const lightIcon = document.querySelector('.theme-icon-light');
+
+        if (state.theme === 'dark') {
+            darkIcon.style.display = 'block';
+            lightIcon.style.display = 'none';
+        } else {
+            darkIcon.style.display = 'none';
+            lightIcon.style.display = 'block';
+        }
     }
 };
 
@@ -646,11 +998,27 @@ async function loadData() {
             } catch (error) {
                 console.warn(`Failed to load commits for ${repo.name}`);
             }
+
+            // Load PRs
+            try {
+                const prs = await api.getPulls(repo.name, repo.owner.login);
+                prs.forEach(pr => {
+                    pr.repo = repo.name;
+                    state.pullRequests.push(pr);
+                });
+            } catch (error) {
+                console.warn(`Failed to load PRs for ${repo.name}`);
+            }
         }
 
         // Sort commits by date
         state.commits.sort((a, b) =>
             new Date(b.commit.author.date) - new Date(a.commit.author.date)
+        );
+
+        // Sort PRs by date
+        state.pullRequests.sort((a, b) =>
+            new Date(b.created_at) - new Date(a.created_at)
         );
 
         // Update UI
@@ -661,6 +1029,9 @@ async function loadData() {
         ui.renderLeaderboard();
         ui.renderTeam();
         ui.renderCommits();
+        ui.renderPullRequests();
+        ui.renderWeeklySummary();
+        ui.renderGoals();
 
         ui.hideLoading();
         ui.showView('overview');
@@ -678,6 +1049,9 @@ async function loadData() {
 
 // Event Listeners
 document.addEventListener('DOMContentLoaded', () => {
+    // Initialize theme
+    ui.initTheme();
+
     // Navigation
     document.querySelectorAll('.nav-item, .view-all').forEach(item => {
         item.addEventListener('click', (e) => {
@@ -687,12 +1061,27 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
+    // Theme toggle
+    if (elements.themeToggle) {
+        elements.themeToggle.addEventListener('click', () => {
+            ui.toggleTheme();
+        });
+    }
+
     // Refresh button
     if (elements.refreshBtn) {
         elements.refreshBtn.addEventListener('click', () => {
             state.commits = [];
+            state.pullRequests = [];
             state.contributors.clear();
             loadData();
+        });
+    }
+
+    // Add goal button
+    if (elements.addGoalBtn) {
+        elements.addGoalBtn.addEventListener('click', () => {
+            ui.showAddGoalModal();
         });
     }
 

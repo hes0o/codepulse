@@ -2,7 +2,7 @@
    CodePulse - Design System & Styles
    ==================================== */
 
-/* CSS Variables */
+/* CSS Variables - Dark Mode (Default) */
 :root {
     /* Colors */
     --primary-hue: 250;
@@ -10,26 +10,26 @@
     --primary-dark: hsl(var(--primary-hue), 100%, 55%);
     --primary-light: hsl(var(--primary-hue), 100%, 75%);
     --primary-glow: hsla(var(--primary-hue), 100%, 65%, 0.4);
-    
+
     --accent-hue: 170;
     --accent: hsl(var(--accent-hue), 100%, 50%);
-    
+
     --bg-dark: #0a0a0f;
     --bg-card: #12121a;
     --bg-card-hover: #1a1a25;
     --bg-elevated: #16161f;
-    
+
     --text-primary: #ffffff;
     --text-secondary: #a0a0b0;
     --text-muted: #606070;
-    
+
     --border-color: rgba(255, 255, 255, 0.08);
     --border-subtle: rgba(255, 255, 255, 0.04);
-    
+
     --success: #10b981;
     --warning: #f59e0b;
     --error: #ef4444;
-    
+
     /* Spacing */
     --space-xs: 0.25rem;
     --space-sm: 0.5rem;
@@ -38,7 +38,7 @@
     --space-xl: 2rem;
     --space-2xl: 3rem;
     --space-3xl: 4rem;
-    
+
     /* Typography */
     --font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
     --font-size-xs: 0.75rem;
@@ -50,7 +50,7 @@
     --font-size-3xl: 2rem;
     --font-size-4xl: 2.5rem;
     --font-size-5xl: 3.5rem;
-    
+
     /* Border Radius */
     --radius-sm: 0.375rem;
     --radius-md: 0.5rem;
@@ -58,12 +58,12 @@
     --radius-xl: 1rem;
     --radius-2xl: 1.5rem;
     --radius-full: 9999px;
-    
+
     /* Transitions */
     --transition-fast: 150ms ease;
     --transition-base: 200ms ease;
     --transition-slow: 300ms ease;
-    
+
     /* Shadows */
     --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
     --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.3);
@@ -71,8 +71,31 @@
     --shadow-glow: 0 0 40px var(--primary-glow);
 }
 
+/* Light Mode Variables */
+[data-theme="light"] {
+    --bg-dark: #f5f7fa;
+    --bg-card: #ffffff;
+    --bg-card-hover: #f0f2f5;
+    --bg-elevated: #f8f9fb;
+
+    --text-primary: #1a1a2e;
+    --text-secondary: #4a4a5a;
+    --text-muted: #8a8a9a;
+
+    --border-color: rgba(0, 0, 0, 0.08);
+    --border-subtle: rgba(0, 0, 0, 0.04);
+
+    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
+    --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.08);
+    --shadow-lg: 0 10px 25px rgba(0, 0, 0, 0.1);
+    --shadow-glow: 0 0 40px hsla(var(--primary-hue), 100%, 65%, 0.15);
+    --primary-glow: hsla(var(--primary-hue), 100%, 65%, 0.2);
+}
+
 /* Reset & Base */
-*, *::before, *::after {
+*,
+*::before,
+*::after {
     margin: 0;
     padding: 0;
     box-sizing: border-box;
@@ -271,9 +294,9 @@ img {
 .hero-grid {
     position: absolute;
     inset: 0;
-    background-image: 
-        linear-gradient(rgba(255,255,255,0.02) 1px, transparent 1px),
-        linear-gradient(90deg, rgba(255,255,255,0.02) 1px, transparent 1px);
+    background-image:
+        linear-gradient(rgba(255, 255, 255, 0.02) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255, 255, 255, 0.02) 1px, transparent 1px);
     background-size: 60px 60px;
     mask-image: radial-gradient(ellipse at center, black 30%, transparent 70%);
 }
@@ -308,8 +331,15 @@ img {
 }
 
 @keyframes pulse {
-    0%, 100% { opacity: 1; }
-    50% { opacity: 0.5; }
+
+    0%,
+    100% {
+        opacity: 1;
+    }
+
+    50% {
+        opacity: 0.5;
+    }
 }
 
 .hero-title {
@@ -401,9 +431,17 @@ img {
     background: var(--text-muted);
 }
 
-.preview-dots span:first-child { background: #ff5f57; }
-.preview-dots span:nth-child(2) { background: #febc2e; }
-.preview-dots span:last-child { background: #28c840; }
+.preview-dots span:first-child {
+    background: #ff5f57;
+}
+
+.preview-dots span:nth-child(2) {
+    background: #febc2e;
+}
+
+.preview-dots span:last-child {
+    background: #28c840;
+}
 
 .preview-title {
     font-size: var(--font-size-sm);
@@ -451,8 +489,15 @@ img {
 }
 
 @keyframes cardPulse {
-    0%, 100% { opacity: 0.6; }
-    50% { opacity: 1; }
+
+    0%,
+    100% {
+        opacity: 0.6;
+    }
+
+    50% {
+        opacity: 1;
+    }
 }
 
 .preview-card-row {
@@ -699,23 +744,23 @@ img {
     .nav-links {
         display: none;
     }
-    
+
     .mobile-menu-btn {
         display: flex;
     }
-    
+
     .hero-stats {
         gap: var(--space-xl);
     }
-    
+
     .stat-number {
         font-size: var(--font-size-xl);
     }
-    
+
     .step-connector {
         display: none;
     }
-    
+
     .features-grid {
         grid-template-columns: 1fr;
     }
@@ -726,24 +771,24 @@ img {
         flex-direction: row;
         text-align: left;
     }
-    
+
     .hero-content {
         flex: 1;
         text-align: left;
     }
-    
+
     .hero-subtitle {
         margin-left: 0;
     }
-    
+
     .hero-cta {
         justify-content: flex-start;
     }
-    
+
     .hero-stats {
         justify-content: flex-start;
     }
-    
+
     .hero-visual {
         display: block;
         flex: 1;
