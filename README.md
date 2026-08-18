@@ -1,58 +1,37 @@
-# CodePulse
+# ⚡ CodePulse
 
-Track your team's GitHub activity and code quality at a glance.
+> A lightweight, real-time dashboard to monitor your GitHub team's activity, commit history, and code quality[cite: 5, 7].
 
-## Setup
+---
 
-### 1. Create GitHub OAuth App
+### 🚀 Key Features
+* **GitHub Integration:** Secure OAuth login to fetch and visualize repository activity instantly[cite: 5, 7].
+* **Team Analytics:** Track contributors, recent commits, and pull requests across multiple repositories[cite: 4, 7].
+* **Quality Indicators:** Health badges and code quality analysis to spot issues early[cite: 5].
+* **Real-Time Updates:** Dashboard syncs automatically with GitHub to provide the latest activity metrics[cite: 5].
+* **Privacy Focused:** Only reads public data; no code is stored locally[cite: 5].
 
-1. Go to [GitHub Developer Settings](https://github.com/settings/developers)
-2. Click "New OAuth App"
-3. Fill in:
-   - **Application name**: CodePulse
-   - **Homepage URL**: Your domain (e.g., `https://codepulse.yourdomain.com`)
-   - **Authorization callback URL**: `https://yourdomain.com/api/auth/callback`
-4. Save the **Client ID** and **Client Secret**
+---
 
-### 2. Configure Environment Variables
+### 🛠️ Tech Stack & Deployment
+* **Frontend:** HTML5, CSS3 (Custom Styles), Vanilla JavaScript[cite: 4, 5].
+* **Backend/API:** Serverless functions deployed via Vercel for GitHub OAuth routing.
+* **Infrastructure:** Vercel (Hosting & Deployment)[cite: 6, 7].
 
-Copy `.env.example` to `.env.local`:
+---
+
+### ⚙️ Quickstart (Local Development)
+
+#### 1. Configure GitHub OAuth
+1. Go to [GitHub Developer Settings](https://github.com/settings/developers) and create a "New OAuth App".
+2. Set **Homepage URL** to your local or deployed domain[cite: 7].
+3. Set **Authorization callback URL** to `http://localhost:3000/api/auth/callback` (or your domain for production)[cite: 7].
+
+#### 2. Environment Setup
+Clone the repository and configure your environment variables:
 ```bash
+git clone [https://github.com/hes0o/codepulse.git](https://github.com/hes0o/codepulse.git)
+cd codepulse
+
+# Create the environment file
 cp .env.example .env.local
-```
-
-Fill in your credentials in `.env.local`.
-
-### 3. Deploy to Vercel
-
-```bash
-# Install Vercel CLI
-npm i -g vercel
-
-# Deploy
-vercel
-
-# Set environment variables in Vercel dashboard
-# Or use: vercel env add GITHUB_CLIENT_ID
-```
-
-### 4. Connect Your Domain
-
-1. Go to Vercel Dashboard → Your Project → Settings → Domains
-2. Add your domain
-3. Update DNS records as instructed
-
-## Development
-
-```bash
-# Run locally
-vercel dev
-```
-
-## Features
-
-- 🔐 Login with GitHub
-- 📊 View all your repositories
-- 👥 Track team member activity
-- ✅ Code quality indicators
-- 📈 Commit history visualization
